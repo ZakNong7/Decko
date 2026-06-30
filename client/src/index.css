@@ -1,0 +1,180 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+
+:root {
+  --bg-dark: #121417;
+  --bg-card: #1e2125;
+  --bg-sidebar: #181a1d;
+  --text-main: #ffffff;
+  --text-muted: #a0a0a0;
+  --primary: #0095ff;
+  --danger: #ff4d4d;
+  --success: #2ecc71;
+  --warning: #f39c12;
+  --purple: #9b59b6;
+  --border: rgba(255, 255, 255, 0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --transition: all 0.2s ease-in-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.route-shell {
+  min-height: 100vh;
+}
+
+.route-shell-enter {
+  animation: pageFadeIn 220ms ease-out;
+}
+
+.modal-backdrop-enter {
+  animation: backdropFadeIn 180ms ease-out;
+}
+
+.modal-panel-enter {
+  animation: panelRiseIn 220ms ease-out;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panelRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-shell-enter,
+  .modal-backdrop-enter,
+  .modal-panel-enter {
+    animation: none;
+  }
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+input,
+textarea {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: white;
+  padding: 10px 14px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Kanban Board Specific Styles */
+.kanban-board {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  overflow-x: auto;
+  min-height: calc(100vh - 80px);
+}
+
+.kanban-list {
+  background: transparent;
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: var(--transition);
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.label {
+  height: 6px;
+  width: 40px;
+  border-radius: 3px;
+  margin-bottom: 12px;
+}
+
+.logo-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-bars span {
+  width: 14px;
+  height: 2px;
+  background-color: white;
+  border-radius: 1px;
+}
