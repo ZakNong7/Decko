@@ -1,3 +1,4 @@
+import AlertModal from "../components/modals/AlertModal";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -25,10 +26,12 @@ const Dashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(null);
+  const [alertInfo, setAlertInfo] = useState(null);
   const [editWsName, setEditWsName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [newWsData, setNewWsData] = useState({ name: "", type: "Private" });
   const [createdInviteCode, setCreatedInviteCode] = useState(null);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -65,7 +68,7 @@ const Dashboard = () => {
         fetchWorkspaces();
       }
     } catch (err) {
-      alert("Gagal membuat workspace");
+      setAlertInfo({ title: "Gagal", message: "Gagal membuat workspace", type: "error" });
     }
   };
 
@@ -96,7 +99,7 @@ const Dashboard = () => {
       setIsSettingsOpen(null);
       fetchWorkspaces();
     } catch (err) {
-      alert("Gagal mengupdate workspace");
+      setAlertInfo({ title: "Gagal", message: "Gagal memperbarui nama workspace", type: "error" });
     }
   };
 
@@ -108,7 +111,7 @@ const Dashboard = () => {
       setIsSettingsOpen(null);
       fetchWorkspaces();
     } catch (err) {
-      alert("Gagal menghapus workspace");
+      setAlertInfo({ title: "Gagal", message: "Gagal menghapus workspace", type: "error" });
     }
   };
 
@@ -173,7 +176,7 @@ const Dashboard = () => {
         const randomId = board.slug_id || board.id;
         navigate(`/workspace/${wsSlug}/${randomId}/${boardSlug}`);
       } else {
-        alert("Workspace belum memiliki papan.");
+        setAlertInfo({ title: "Papan Kosong", message: "Workspace ini belum mempunyai papan proyek. Hubungi admin atau buat papan baru terlebih dahulu.", type: "info" });
       }
     } catch (err) {
       console.error("[NAVIGATE ERROR]", err);
@@ -185,10 +188,15 @@ const Dashboard = () => {
       const matchSearch = ws.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
+      const wsType = ws.invitation_code ? "Group" : "Private";
+      const matchType =
+        typeFilter === "all" ||
+        wsType === typeFilter;
       const matchRole =
+        typeFilter !== "Group" ||
         roleFilter === "all" ||
         ws.role?.toLowerCase() === roleFilter.toLowerCase();
-      return matchSearch && matchRole;
+      return matchSearch && matchType && matchRole;
     })
     .sort((a, b) => {
       const aCards = parseInt(a.card_count) || 0;
@@ -245,6 +253,20 @@ const Dashboard = () => {
           <div style={styles.actions}>
             <select
               style={styles.sortSelect}
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                if (e.target.value !== "Group") {
+                  setRoleFilter("all");
+                }
+              }}
+            >
+              <option value="all">Semua Tipe</option>
+              <option value="Private">Private</option>
+              <option value="Group">Group</option>
+            </select>
+            <select
+              style={styles.sortSelect}
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
@@ -268,8 +290,9 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div style={styles.roleRadios}>
-          {["all", "owner", "admin", "member", "observer"].map((r) => (
+        {typeFilter === "Group" && (
+          <div style={styles.roleRadios}>
+            {["all", "owner", "admin", "member", "observer"].map((r) => (
             <label key={r} style={styles.radioLabel}>
               <input
                 type="radio"
@@ -292,6 +315,7 @@ const Dashboard = () => {
             </label>
           ))}
         </div>
+        )}
 
         <div style={styles.grid}>
           {hasNoWorkspacesAtAll ? (
@@ -407,6 +431,14 @@ const Dashboard = () => {
       </main>
 
       {/* Add Workspace Modal */}
+      {alertInfo && (
+        <AlertModal
+          title={alertInfo.title}
+          message={alertInfo.message}
+          type={alertInfo.type}
+          onClose={() => setAlertInfo(null)}
+        />
+      )}
       {isAddModalOpen && (
         <div className="modal-backdrop modal-backdrop-enter" style={styles.modalOverlay}>
           <div className="modal-panel modal-panel-enter" style={styles.modal}>

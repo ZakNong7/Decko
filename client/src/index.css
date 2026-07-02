@@ -178,3 +178,9 @@ input:focus {
   background-color: white;
   border-radius: 1px;
 }
+
+@keyframes welcomeProgress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+

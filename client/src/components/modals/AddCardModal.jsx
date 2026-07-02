@@ -1,8 +1,10 @@
 import LabelModal from './LabelModal';
+import AlertModal from "./AlertModal";
 import React, { useState } from "react";
-import { X, Tag, User } from "lucide-react";
+import { X, Tag, User, Copy, Check } from "lucide-react";
+import api from "../../api/axios";
 
-const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd }) => {
+const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isPrivate }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -10,29 +12,16 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd }) =
   const [deadline, setDeadline] = useState("");
   const [selectedLabelIds, setSelectedLabelIds] = useState([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
+
+  // States for modals and dropdown
   const [showLabelModal, setShowLabelModal] = useState(false);
+  const [alertInfo, setAlertInfo] = useState(null);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [currentLabels, setCurrentLabels] = useState(labels);
 
-  
-  const handleCreateLabel = async (name, color) => {
-    try {
-      const { data } = await api.post(`/boards/${labels[0]?.board_id || 1}/label`, { name, color });
-      setCurrentLabels([...currentLabels, data]);
-    } catch (err) {
-      alert("Gagal membuat label");
-    }
-  };
-
-  const handleDeleteLabel = async (labelId) => {
-    try {
-      await api.delete(`/boards/label/${labelId}`);
-      setCurrentLabels(currentLabels.filter((l) => l.id !== labelId));
-      setSelectedLabelIds(selectedLabelIds.filter((id) => id !== labelId));
-    } catch (err) {
-      alert("Gagal menghapus label");
-    }
-  };
+  // Redesigned color states
+  const [tempColor, setTempColor] = useState("#0095ff");
+  const [copiedColor, setCopiedColor] = useState(false);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -44,7 +33,7 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd }) =
       color,
       deadline: deadline || null,
       labelIds: selectedLabelIds,
-      assigneeIds: selectedMemberIds,
+      assigneeIds: isPrivate ? [] : selectedMemberIds,
     });
   };
 
@@ -64,77 +53,168 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd }) =
     }
   };
 
+  const handleCreateLabel = async (name, colorVal) => {
+    try {
+      const boardId = labels[0]?.board_id || 1;
+      const { data } = await api.post(`/boards/${boardId}/label`, { name, color: colorVal });
+      setCurrentLabels([...currentLabels, data]);
+    } catch (err) {
+      setAlertInfo({ title: "Gagal", message: "Gagal membuat label baru.", type: "error" });
+    }
+  };
+
+  const handleDeleteLabel = async (labelId) => {
+    try {
+      await api.delete(`/boards/label/${labelId}`);
+      setCurrentLabels(currentLabels.filter((l) => l.id !== labelId));
+      setSelectedLabelIds(selectedLabelIds.filter((id) => id !== labelId));
+    } catch (err) {
+      setAlertInfo({ title: "Gagal", message: "Gagal menghapus label.", type: "error" });
+    }
+  };
+
   return (
-    <div className="modal-backdrop modal-backdrop-enter" style={styles.overlay} onClick={onClose}>
-      <div className="modal-panel modal-panel-enter" style={styles.modal} onClick={e => e.stopPropagation()}>
-        <header style={styles.header}>
-          <h2>Tambah Kartu Baru {listName ? `(${listName})` : ""}</h2>
-          <X onClick={onClose} style={{ cursor: "pointer" }} />
-        </header>
+    <>
+      {alertInfo && (
+        <AlertModal
+          title={alertInfo.title}
+          message={alertInfo.message}
+          type={alertInfo.type}
+          onClose={() => setAlertInfo(null)}
+        />
+      )}
+      <div className="modal-backdrop modal-backdrop-enter" style={styles.overlay} onClick={onClose}>
+        <div className="modal-panel modal-panel-enter" style={styles.modal} onClick={e => e.stopPropagation()}>
+          <header style={styles.header}>
+            <h2>Tambah Kartu Baru {listName ? `(${listName})` : ""}</h2>
+            <X onClick={onClose} style={{ cursor: "pointer" }} />
+          </header>
 
-        <form onSubmit={handleSave} style={styles.body}>
-          <div style={styles.section}>
-            <label style={styles.label}>Judul Kartu</label>
-            <input
-              style={styles.input}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Tulis judul tugas..."
-              required
-              autoFocus
-            />
-          </div>
-
-          <div style={styles.section}>
-            <label style={styles.label}>Deskripsi Tugas</label>
-            <textarea
-              style={styles.textarea}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Tambahkan detail tugas..."
-              rows={2}
-            />
-          </div>
-
-          <div style={styles.row}>
-            <div style={{ ...styles.section, flex: 1 }}>
-              <label style={styles.label}>Prioritas</label>
-              <select
-                style={styles.select}
-                value={priority}
-                onChange={e => setPriority(e.target.value)}
-              >
-                <option value="Low">Rendah (Low)</option>
-                <option value="Medium">Sedang (Medium)</option>
-                <option value="High">Tinggi (High)</option>
-              </select>
-            </div>
-
-            <div style={{ ...styles.section, flex: 1 }}>
-              <label style={styles.label}>Tenggat Waktu</label>
+          <form onSubmit={handleSave} style={styles.body}>
+            <div style={styles.section}>
+              <label style={styles.label}>Judul Kartu</label>
               <input
-                type="date"
                 style={styles.input}
-                value={deadline}
-                onChange={e => setDeadline(e.target.value)}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Tulis judul tugas..."
+                required
+                autoFocus
               />
             </div>
-          </div>
 
-          <div style={styles.section}>
-            <label style={styles.label}>Warna Aksen Kartu</label>
-            <label style={styles.colorPickerLabel}>
-              <input
-                type="color"
-                value={color}
-                onChange={e => setColor(e.target.value)}
-                style={styles.colorInput}
+            <div style={styles.section}>
+              <label style={styles.label}>Deskripsi Tugas</label>
+              <textarea
+                style={styles.textarea}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Tambahkan detail tugas..."
+                rows={2}
               />
-              <span style={styles.colorHex}>{color.toUpperCase()}</span>
-            </label>
-          </div>
+            </div>
 
-          {currentLabels.length > 0 && (
+            <div style={styles.row}>
+              <div style={{ ...styles.section, flex: 1 }}>
+                <label style={styles.label}>Prioritas</label>
+                <select
+                  style={styles.select}
+                  value={priority}
+                  onChange={e => setPriority(e.target.value)}
+                >
+                  <option value="Low">Rendah (Low)</option>
+                  <option value="Medium">Sedang (Medium)</option>
+                  <option value="High">Tinggi (High)</option>
+                </select>
+              </div>
+
+              <div style={{ ...styles.section, flex: 1 }}>
+                <label style={styles.label}>Tenggat Waktu</label>
+                <input
+                  type="date"
+                  style={styles.input}
+                  value={deadline}
+                  onChange={e => setDeadline(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* REDESIGNED COLOR ACCENT PICKER */}
+            <div style={styles.section}>
+              <label style={styles.label}>Warna Aksen Kartu</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <input
+                  type="color"
+                  value={tempColor}
+                  onChange={e => setTempColor(e.target.value)}
+                  style={styles.colorInput}
+                />
+                <input
+                  type="text"
+                  style={styles.hexInput}
+                  value={tempColor.toUpperCase()}
+                  onChange={e => {
+                    let val = e.target.value;
+                    if (!val.startsWith("#")) val = "#" + val;
+                    setTempColor(val);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempColor);
+                    setCopiedColor(true);
+                    setTimeout(() => setCopiedColor(false), 1500);
+                  }}
+                  style={styles.iconBtn}
+                  title="Salin Kode Hex"
+                >
+                  {copiedColor ? <Check size={14} color="#2ecc71" /> : <Copy size={14} />}
+                </button>
+                {tempColor.toLowerCase() !== color.toLowerCase() && (
+                  <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setColor(tempColor)}
+                      style={{
+                        backgroundColor: "#2ecc71",
+                        border: "none",
+                        color: "white",
+                        padding: "6px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      title="Simpan Warna"
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTempColor(color)}
+                      style={{
+                        backgroundColor: "#ff4d4d",
+                        border: "none",
+                        color: "white",
+                        padding: "6px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      title="Batal"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* LABELS SECTION */}
             <div style={styles.section}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <label style={styles.label}><Tag size={12} style={{ marginRight: "4px" }} /> Label</label>
@@ -172,64 +252,70 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd }) =
                     </button>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {members.length > 0 && (
-            <div style={styles.section}>
-              <label style={styles.label}><User size={12} style={{ marginRight: "4px" }} /> Tugaskan Anggota</label>
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  style={styles.dropdownBtn}
-                  onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
-                >
-                  {selectedMemberIds.length > 0 ? `${selectedMemberIds.length} Anggota Terpilih` : "Pilih Anggota..."}
-                </button>
-                {showAssigneeDropdown && (
-                  <div style={styles.dropdownMenu}>
-                    {members.map((member) => {
-                      const isSelected = selectedMemberIds.includes(member.id);
-                      return (
-                        <label key={member.id} style={styles.dropdownOption}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleMember(member.id)}
-                          />
-                          <span>{member.full_name || member.username}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                {currentLabels.length === 0 && (
+                  <span style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
+                    Belum ada label. Klik "+ Kelola" untuk membuat label baru.
+                  </span>
                 )}
               </div>
             </div>
-          )}
 
-          <footer style={styles.footer}>
-            <button type="button" style={styles.cancelBtn} onClick={onClose}>
-              Batal
-            </button>
-            <button type="submit" style={styles.submitBtn}>
-              Tambah Kartu
-            </button>
-          </footer>
-        </form>
+            {/* MEMBERS ASSIGNEES (HIDDEN ON PRIVATE WORKSPACE) */}
+            {!isPrivate && members.length > 0 && (
+              <div style={styles.section}>
+                <label style={styles.label}><User size={12} style={{ marginRight: "4px" }} /> Tugaskan Anggota</label>
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    style={styles.dropdownBtn}
+                    onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                  >
+                    {selectedMemberIds.length > 0 ? `${selectedMemberIds.length} Anggota Terpilih` : "Pilih Anggota..."}
+                  </button>
+                  {showAssigneeDropdown && (
+                    <div style={styles.dropdownMenu}>
+                      {members.map((member) => {
+                        const isSelected = selectedMemberIds.includes(member.id);
+                        return (
+                          <label key={member.id} style={styles.dropdownOption}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleMember(member.id)}
+                            />
+                            <span>{member.full_name || member.username}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-      {showLabelModal && (
-        <LabelModal
-          labels={currentLabels}
-          selectedLabelIds={selectedLabelIds}
-          onClose={() => setShowLabelModal(false)}
-          onCreateLabel={handleCreateLabel}
-          onDeleteLabel={handleDeleteLabel}
-          onToggleLabel={toggleLabel}
-        />
-      )}
+            <footer style={styles.footer}>
+              <button type="button" style={styles.cancelBtn} onClick={onClose}>
+                Batal
+              </button>
+              <button type="submit" style={styles.submitBtn}>
+                Tambah Kartu
+              </button>
+            </footer>
+          </form>
+        </div>
+
+        {showLabelModal && (
+          <LabelModal
+            labels={currentLabels}
+            selectedLabelIds={selectedLabelIds}
+            onClose={() => setShowLabelModal(false)}
+            onCreateLabel={handleCreateLabel}
+            onDeleteLabel={handleDeleteLabel}
+            onToggleLabel={toggleLabel}
+          />
+        )}
       </div>
-    </div>
+    </>
   );
 };
 
@@ -315,26 +401,56 @@ const styles = {
     fontSize: "14px",
     outline: "none",
   },
-  colorPickerLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    cursor: "pointer",
-    marginTop: "4px",
-  },
   colorInput: {
-    width: "36px",
-    height: "36px",
+    width: "38px",
+    height: "38px",
     padding: 0,
     border: "1px solid rgba(255, 255, 255, 0.15)",
     borderRadius: "8px",
     background: "transparent",
     cursor: "pointer",
   },
-  colorHex: {
-    fontSize: "14px",
-    color: "#a0a0a0",
+  hexInput: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    color: "#fff",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    width: "90px",
     fontFamily: "monospace",
+    outline: "none",
+  },
+  iconBtn: {
+    backgroundColor: "transparent",
+    border: "1px solid rgba(255, 255, 255, 0.15)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "9px 12px",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+  saveColorBtn: {
+    backgroundColor: "#2ecc71",
+    color: "white",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  cancelColorBtn: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    color: "#ccc",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
   },
   labelWrap: {
     display: "flex",
@@ -356,48 +472,6 @@ const styles = {
     width: "8px",
     height: "8px",
     borderRadius: "999px",
-  },
-  assigneePicker: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    marginTop: "4px",
-    backgroundColor: "rgba(255,255,255,0.02)",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid rgba(255,255,255,0.05)",
-  },
-  assigneeOption: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    fontSize: "13px",
-    color: "#ccc",
-    cursor: "pointer",
-    userSelect: "none",
-  },
-  footer: {
-    paddingTop: "10px",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "12px",
-  },
-  cancelBtn: {
-    backgroundColor: "transparent",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  addLabelBtn: {
-    backgroundColor: "transparent",
-    border: "1px dashed #444",
-    color: "#a0a0a0",
-    padding: "4px 10px",
-    borderRadius: "6px",
-    fontSize: "11px",
-    cursor: "pointer",
   },
   dropdownBtn: {
     width: "100%",
@@ -440,6 +514,29 @@ const styles = {
     ":hover": {
       backgroundColor: "rgba(255,255,255,0.05)",
     }
+  },
+  addLabelBtn: {
+    backgroundColor: "transparent",
+    border: "1px dashed #444",
+    color: "#a0a0a0",
+    padding: "4px 10px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    cursor: "pointer",
+  },
+  footer: {
+    paddingTop: "10px",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+  },
+  cancelBtn: {
+    backgroundColor: "transparent",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+    color: "#fff",
+    padding: "10px 20px",
+    borderRadius: "8px",
+    cursor: "pointer",
   },
   submitBtn: {
     backgroundColor: "#0095ff",

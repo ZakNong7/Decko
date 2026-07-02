@@ -1,3 +1,4 @@
+import AlertModal from "../components/modals/AlertModal";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -6,8 +7,12 @@ import { X, User, Lock, Mail, Eye, EyeOff } from "lucide-react";
 const Landing = () => {
   const [activeModal, setActiveModal] = useState(null); // 'login' or 'register'
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({ username: '', password: '', email: '', confirmPassword: '' });
   const navigate = useNavigate();
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeUser, setWelcomeUser] = useState("");
+  const [alertInfo, setAlertInfo] = useState(null);
 
   const handleAuth = async (e, type) => {
     e.preventDefault();
@@ -18,13 +23,25 @@ const Landing = () => {
       if (type === 'login') {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/dashboard');
+        setWelcomeUser(data.user.full_name || data.user.username);
+        setShowWelcome(true);
+        setActiveModal(null);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1800);
       } else {
-        alert('Registrasi berhasil! Silakan masuk.');
-        setActiveModal('login');
+        setAlertInfo({
+          title: "Sukses",
+          message: "Registrasi berhasil! Silakan masuk.",
+          type: "success",
+          onClose: () => {
+            setAlertInfo(null);
+            setActiveModal("login");
+          }
+        });
       }
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || 'Gagal terhubung ke server'));
+      setAlertInfo({ title: 'Gagal', message: err.response?.data?.message || 'Gagal terhubung ke server', type: 'error' });
     }
   };
 
@@ -65,8 +82,8 @@ const Landing = () => {
 
       {/* AUTH MODAL */}
       {activeModal && (
-        <div style={styles.modalOverlay} onClick={closeModal}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop modal-backdrop-enter" style={styles.modalOverlay} onClick={closeModal}>
+          <div className="modal-panel modal-panel-enter" style={styles.modal} onClick={e => e.stopPropagation()}>
             <button style={styles.closeModalBtn} onClick={closeModal}><X size={24} /></button>
             <div style={styles.modalHeader}>
               <div style={styles.userIconCircle}><User size={40} /></div>
@@ -122,7 +139,7 @@ const Landing = () => {
               {activeModal === 'register' && (
                 <div style={styles.inputWrapper}>
                   <input 
-                    type={showPassword ? "text" : "password"} 
+                    type={showConfirmPassword ? "text" : "password"} 
                     placeholder="Konfirmasi Password" 
                     style={styles.input}
                     value={formData.confirmPassword}
@@ -130,6 +147,13 @@ const Landing = () => {
                     required
                   />
                   <Lock size={18} style={styles.inputIcon} />
+                  <button 
+                    type="button" 
+                    style={styles.passwordToggle} 
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               )}
 
@@ -141,6 +165,29 @@ const Landing = () => {
                 {activeModal === 'login' ? 'MASUK' : 'DAFTAR'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {alertInfo && (
+        <AlertModal
+          title={alertInfo.title}
+          message={alertInfo.message}
+          type={alertInfo.type}
+          onClose={alertInfo.onClose || (() => setAlertInfo(null))}
+        />
+      )}
+      {showWelcome && (
+        <div className="modal-backdrop modal-backdrop-enter" style={styles.welcomeOverlay}>
+          <div className="modal-panel modal-panel-enter" style={styles.welcomeCard}>
+            <div style={styles.welcomeAvatar}>
+              {welcomeUser.substring(0, 2).toUpperCase()}
+            </div>
+            <h2 style={styles.welcomeTitle}>Selamat Datang Kembali!</h2>
+            <p style={styles.welcomeName}>{welcomeUser}</p>
+            <div style={styles.welcomeLoader}>
+              <div style={styles.welcomeLoaderBar}></div>
+            </div>
+            <p style={styles.welcomeSubtext}>Mempersiapkan workspace Anda...</p>
           </div>
         </div>
       )}
@@ -209,6 +256,78 @@ const styles = {
   outlineBtn: { padding: '12px 40px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#0095ff', fontSize: '14px', fontWeight: '700', borderRadius: '8px' },
   solidBtn: { padding: '12px 40px', backgroundColor: '#0095ff', color: 'white', fontSize: '14px', fontWeight: '700', borderRadius: '8px' },
   
+  welcomeOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(26, 29, 33, 0.95)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+    backdropFilter: 'blur(8px)',
+  },
+  welcomeCard: {
+    backgroundColor: '#1e2125',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '24px',
+    padding: '48px 40px',
+    width: '90%',
+    maxWidth: '420px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+  },
+  welcomeAvatar: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '40px',
+    backgroundColor: '#0095ff',
+    color: 'white',
+    fontSize: '28px',
+    fontWeight: '800',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '24px',
+    boxShadow: '0 0 20px rgba(0, 149, 255, 0.4)',
+  },
+  welcomeTitle: {
+    fontSize: '24px',
+    fontWeight: '800',
+    color: 'white',
+    margin: '0 0 8px 0',
+  },
+  welcomeName: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#0095ff',
+    margin: '0 0 32px 0',
+  },
+  welcomeLoader: {
+    width: '100%',
+    height: '4px',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+    marginBottom: '16px',
+  },
+  welcomeLoaderBar: {
+    width: '50%',
+    height: '100%',
+    backgroundColor: '#0095ff',
+    borderRadius: '2px',
+    animation: 'welcomeProgress 1.5s ease-in-out infinite',
+  },
+  welcomeSubtext: {
+    fontSize: '13px',
+    color: '#888',
+    margin: 0,
+  },
   modalOverlay: {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,

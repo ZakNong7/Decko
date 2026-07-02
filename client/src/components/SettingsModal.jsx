@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Trash2, Shield, UserMinus, RotateCw, Copy, Check } from "lucide-react";
 import api from "../api/axios";
 
-const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
+const SettingsModal = ({ isOpen, onClose, board, onUpdate, totalBoards, onDeleted }) => {
   const [boardName, setBoardName] = useState(board?.name || "");
   const [members, setMembers] = useState([]);
   const [inviteCode, setInviteCode] = useState("");
@@ -82,9 +82,19 @@ const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
     try {
       await api.delete(`/boards/${board.id}`);
       onClose();
-      window.location.href = "/dashboard";
+      if (onDeleted) {
+        onDeleted();
+      } else {
+        window.location.href = "/dashboard";
+      }
     } catch (err) {
-      alert("Gagal menghapus papan");
+      setConfirmModal({
+        title: "Gagal",
+        message: "Gagal menghapus papan proyek.",
+        confirmText: "Tutup",
+        isDanger: true,
+        onConfirm: () => setConfirmModal(null)
+      });
     } finally {
       setConfirmModal(null);
     }
@@ -106,7 +116,13 @@ const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
       setInviteCode(data.invitation_code);
       onUpdate();
     } catch (err) {
-      alert(err.response?.data?.message || "Gagal mereset kode undangan");
+      setConfirmModal({
+        title: "Gagal",
+        message: err.response?.data?.message || "Gagal mereset kode undangan.",
+        confirmText: "Tutup",
+        isDanger: true,
+        onConfirm: () => setConfirmModal(null)
+      });
     } finally {
       setConfirmModal(null);
     }
@@ -118,7 +134,13 @@ const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
       fetchMembers();
       // No success alert/notification as requested!
     } catch (err) {
-      alert(err.response?.data?.message || "Gagal memperbarui role");
+      setConfirmModal({
+        title: "Gagal",
+        message: err.response?.data?.message || "Gagal memperbarui role anggota.",
+        confirmText: "Tutup",
+        isDanger: true,
+        onConfirm: () => setConfirmModal(null)
+      });
     }
   };
 
@@ -137,7 +159,13 @@ const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
       await api.delete(`/workspaces/${board.workspace_id}/members/${userId}`);
       fetchMembers();
     } catch (err) {
-      alert(err.response?.data?.message || "Gagal mengeluarkan anggota");
+      setConfirmModal({
+        title: "Gagal",
+        message: err.response?.data?.message || "Gagal mengeluarkan anggota workspace.",
+        confirmText: "Tutup",
+        isDanger: true,
+        onConfirm: () => setConfirmModal(null)
+      });
     } finally {
       setConfirmModal(null);
     }
@@ -241,9 +269,16 @@ const SettingsModal = ({ isOpen, onClose, board, onUpdate }) => {
 
           {/* DANGER ZONE (HAPUS PAPAN) */}
           <section style={styles.dangerZone}>
-            <button style={styles.deleteBtn} onClick={triggerDeleteBoard}>
-              <Trash2 size={16} /> Hapus Papan Proyek
-            </button>
+            <h3 style={styles.dangerTitle}>Zona Bahaya</h3>
+            {totalBoards <= 1 ? (
+              <p style={{ ...styles.description, color: "#e74c3c", marginTop: "8px" }}>
+                Papan ini tidak dapat dihapus karena merupakan satu-satunya papan proyek di workspace ini.
+              </p>
+            ) : (
+              <button style={styles.deleteBtn} onClick={triggerDeleteBoard}>
+                <Trash2 size={16} /> Hapus Papan Proyek
+              </button>
+            )}
           </section>
         </div>
       </div>

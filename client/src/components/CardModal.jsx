@@ -1,3 +1,4 @@
+import AlertModal from "./modals/AlertModal";
 import React, { useMemo, useState } from "react";
 import {
   X,
@@ -10,6 +11,8 @@ import {
   Send,
   Palette,
   AlertTriangle,
+  Check,
+  Copy,
 } from "lucide-react";
 import api from "../api/axios";
 import LabelModal from "./modals/LabelModal";
@@ -47,6 +50,9 @@ const CardModal = ({
   );
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [alertInfo, setAlertInfo] = useState(null);
+  const [tempColor, setTempColor] = useState(card?.color || "#0095ff");
+  const [copiedColor, setCopiedColor] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const currentUser = JSON.parse(localStorage.getItem("user") || "null");
   const normalizedRole = normalizeRole(userRole);
@@ -84,6 +90,7 @@ const CardModal = ({
       setDescription(card.description || "");
       setPriority(card.priority || "Medium");
       setCardColor(card.color || "#0095ff");
+      setTempColor(card.color || "#0095ff");
       setTitle(card.title || "");
       setDeadline(
         card.deadline
@@ -120,7 +127,7 @@ const CardModal = ({
       setNewComment("");
       fetchComments();
     } catch (err) {
-      alert("Gagal mengirim komentar");
+      setAlertInfo({ title: "Gagal", message: "Gagal memposting komentar baru.", type: "error" });
     }
   };
 
@@ -130,7 +137,7 @@ const CardModal = ({
       await api.delete(`/comments/${commentId}`);
       fetchComments();
     } catch (err) {
-      alert("Gagal menghapus komentar");
+      setAlertInfo({ title: "Gagal", message: "Gagal menghapus komentar.", type: "error" });
     }
   };
 
@@ -152,7 +159,7 @@ const CardModal = ({
       if (onUpdate) onUpdate();
       onClose();
     } catch (err) {
-      alert("Gagal menyimpan kartu");
+      setAlertInfo({ title: "Gagal", message: "Gagal menyimpan perubahan kartu.", type: "error" });
     }
   };
 
@@ -163,7 +170,7 @@ const CardModal = ({
       if (onUpdate) onUpdate();
       onClose();
     } catch (err) {
-      alert("Gagal menghapus kartu");
+      setAlertInfo({ title: "Gagal", message: "Gagal menghapus kartu.", type: "error" });
     }
   };
 
@@ -177,7 +184,7 @@ const CardModal = ({
       setLabelIds((current) => [...current, data.id]);
       if (onUpdate) onUpdate();
     } catch (err) {
-      alert("Gagal membuat label");
+      setAlertInfo({ title: "Gagal", message: "Gagal membuat label baru.", type: "error" });
     }
   };
 
@@ -187,7 +194,7 @@ const CardModal = ({
       setLabelIds((current) => current.filter((id) => id !== labelId));
       if (onUpdate) onUpdate();
     } catch (err) {
-      alert("Gagal menghapus label");
+      setAlertInfo({ title: "Gagal", message: "Gagal menghapus label.", type: "error" });
     }
   };
 
@@ -340,18 +347,103 @@ const CardModal = ({
 
               <div style={styles.attribute}>
                 <Palette size={16} /> <span>Aksen</span>
-                <label style={styles.colorPickerLabel}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", flex: 1 }}>
                   <input
                     type="color"
-                    value={cardColor}
-                    onChange={(e) =>
-                      canEditCards && setCardColor(e.target.value)
-                    }
-                    disabled={!canEditCards}
                     style={styles.colorInput}
+                    value={tempColor}
+                    onChange={(e) => canEditCards && setTempColor(e.target.value)}
+                    disabled={!canEditCards}
                   />
-                  <span style={styles.colorHex}>{cardColor.toUpperCase()}</span>
-                </label>
+                  <input
+                    type="text"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "#fff",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      width: "80px",
+                      fontFamily: "monospace",
+                      outline: "none",
+                    }}
+                    value={tempColor.toUpperCase()}
+                    onChange={(e) => {
+                      if (canEditCards) {
+                        let val = e.target.value;
+                        if (!val.startsWith("#")) val = "#" + val;
+                        setTempColor(val);
+                      }
+                    }}
+                    disabled={!canEditCards}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempColor);
+                      setCopiedColor(true);
+                      setTimeout(() => setCopiedColor(false), 1500);
+                    }}
+                    style={{
+                      backgroundColor: "transparent",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      color: "#fff",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    title="Salin Kode Hex"
+                  >
+                    {copiedColor ? <Check size={12} color="#2ecc71" /> : <Copy size={12} />}
+                  </button>
+                  {tempColor.toLowerCase() !== cardColor.toLowerCase() && (
+                    <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCardColor(tempColor);
+                        }}
+                        style={{
+                          backgroundColor: "#2ecc71",
+                          border: "none",
+                          color: "white",
+                          padding: "6px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title="Simpan Warna"
+                      >
+                        <Check size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempColor(cardColor);
+                        }}
+                        style={{
+                          backgroundColor: "#ff4d4d",
+                          border: "none",
+                          color: "white",
+                          padding: "6px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        title="Batal"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={styles.attribute}>
@@ -508,6 +600,14 @@ const CardModal = ({
         </footer>
       </div>
 
+      {alertInfo && (
+        <AlertModal
+          title={alertInfo.title}
+          message={alertInfo.message}
+          type={alertInfo.type}
+          onClose={() => setAlertInfo(null)}
+        />
+      )}
       {showLabelModal && (
         <LabelModal
           labels={labels}

@@ -10,13 +10,19 @@ const MIN_PASSWORD_LENGTH = 8;
 
 function validateRegisterInput({ username, email, password }) {
   if (!username || String(username).trim().length < 3) {
-    return 'Username must be at least 3 characters';
+    return 'Username minimal harus 3 karakter';
   }
   if (!email || !EMAIL_REGEX.test(String(email).trim())) {
-    return 'Valid email is required';
+    return 'Email tidak valid';
   }
-  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
-    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+  if (!password || String(password).length < 8) {
+    return 'Password harus terdiri minimal 8 karakter, huruf kapital, angka, dan simbol unik';
+  }
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+  if (!hasUppercase || !hasNumber || !hasSymbol) {
+    return 'Password harus terdiri minimal 8 karakter, huruf kapital, angka, dan simbol unik';
   }
   return null;
 }

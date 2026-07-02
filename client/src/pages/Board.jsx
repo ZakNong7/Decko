@@ -1,3 +1,4 @@
+import AlertModal from "../components/modals/AlertModal";
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -42,6 +43,7 @@ const BoardView = () => {
   const [showAddBoard, setShowAddBoard] = useState(false);
   const [showAddCard, setShowAddCard] = useState(null);
   const [showEditList, setShowEditList] = useState(null);
+  const [alertInfo, setAlertInfo] = useState(null);
   const [isBoardDropdownOpen, setIsBoardDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -101,7 +103,7 @@ const BoardView = () => {
       setShowAddList(false);
       fetchBoardData();
     } catch (err) {
-      alert("Gagal menambah list");
+      setAlertInfo({ title: "Gagal", message: "Gagal menambah list baru.", type: "error" });
     }
   };
 
@@ -114,7 +116,7 @@ const BoardView = () => {
       setShowAddBoard(false);
       fetchBoardData();
     } catch (err) {
-      alert("Gagal menambah papan");
+      setAlertInfo({ title: "Gagal", message: "Gagal menambah papan baru.", type: "error" });
     }
   };
 
@@ -134,7 +136,7 @@ const BoardView = () => {
       setShowAddCard(null);
       fetchBoardData();
     } catch (err) {
-      alert("Gagal menambah kartu");
+      setAlertInfo({ title: "Gagal", message: "Gagal menambah kartu baru.", type: "error" });
     }
   };
 
@@ -169,7 +171,7 @@ const BoardView = () => {
   const onDragEnd = async (result) => {
     const userRole = board?.user_role;
     if (!canEditCards(userRole)) {
-      alert("Akses ditolak. Peran Observer hanya dapat melihat papan.");
+      setAlertInfo({ title: "Akses Ditolak", message: "Peran Observer hanya memiliki izin untuk melihat papan.", type: "info" });
       return;
     }
 
@@ -371,6 +373,15 @@ const BoardView = () => {
           totalBoards={boardsInWorkspace.length}
           onDeleted={handleBoardDeleted}
           onClose={() => setIsSettingsOpen(false)}
+          onUpdate={fetchBoardData}
+        />
+      )}
+      {alertInfo && (
+        <AlertModal
+          title={alertInfo.title}
+          message={alertInfo.message}
+          type={alertInfo.type}
+          onClose={() => setAlertInfo(null)}
         />
       )}
       {showAddList && (
@@ -387,6 +398,7 @@ const BoardView = () => {
           listName={board.lists.find((l) => l.id === showAddCard)?.name}
           labels={board.labels || []}
           members={board.members || []}
+          isPrivate={isPrivate}
           onClose={() => setShowAddCard(null)}
           onAdd={addCard}
         />
