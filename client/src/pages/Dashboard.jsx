@@ -21,6 +21,18 @@ import {
 } from "lucide-react";
 
 const Dashboard = () => {
+  const slugify = (text) => {
+  if (!text) return "";
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")           // Replace spaces with -
+    .replace(/[^\w\-]+/g, "")       // Remove all non-word chars
+    .replace(/\-\-+/g, "-")         // Replace multiple - with single -
+    .replace(/^-+/, "")             // Trim - from start
+    .replace(/-+$/, "");            // Trim - from end
+};
   const [workspaces, setWorkspaces] = useState([]);
   const [user, setUser] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -171,8 +183,8 @@ const Dashboard = () => {
       const { data } = await api.get(`/boards/workspace/${workspaceId}`);
       if (data && data.length > 0) {
         const board = data[0];
-        const wsSlug = ws ? ws.name.toLowerCase().replace(/\s+/g, "-") : "ws";
-        const boardSlug = board.name.toLowerCase().replace(/\s+/g, "-");
+        const wsSlug = ws ? slugify(ws.name) : "ws";
+        const boardSlug = slugify(board.name);
         const randomId = board.slug_id || board.id;
         navigate(`/workspace/${wsSlug}/${randomId}/${boardSlug}`);
       } else {

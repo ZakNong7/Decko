@@ -1,5 +1,5 @@
 import AlertModal from "../components/modals/AlertModal";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { X, User, Lock, Mail, Eye, EyeOff } from "lucide-react";
@@ -13,6 +13,13 @@ const Landing = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeUser, setWelcomeUser] = useState("");
   const [alertInfo, setAlertInfo] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/dashboard");
+    }
+  }, [navigate]);
 
   const handleAuth = async (e, type) => {
     e.preventDefault();
@@ -224,7 +231,7 @@ const styles = {
   container: {
     height: '100vh',
     backgroundColor: '#343a40',
-    backgroundImage: "url('/bg.png')",
+    backgroundImage: "url('./bg.png')",
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     display: 'flex',

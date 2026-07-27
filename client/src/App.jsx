@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Routes,
   Route,
   Navigate,
@@ -49,6 +49,16 @@ const AnimatedRoutes = () => {
         {/* RUTE UTAMA: Menangkap /workspace/Sesuatu/ID/Sesuatu */}
         <Route
           path="/workspace/:workspaceName/:boardId/:boardName"
+          element={
+            <ProtectedRoute>
+              <Board />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* RUTE CADANGAN 3 SEGMEN: Untuk mengamankan rute jika nama papan tidak terkirim */}
+        <Route
+          path="/workspace/:workspaceName/:boardId"
           element={
             <ProtectedRoute>
               <Board />

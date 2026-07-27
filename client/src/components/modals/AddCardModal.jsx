@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { X, Tag, User, Copy, Check } from "lucide-react";
 import api from "../../api/axios";
 
-const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isPrivate }) => {
+const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isPrivate, userRole, workspaceId }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -55,9 +55,14 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isP
 
   const handleCreateLabel = async (name, colorVal) => {
     try {
-      const boardId = labels[0]?.board_id || 1;
-      const { data } = await api.post(`/boards/${boardId}/label`, { name, color: colorVal });
+      const targetWorkspaceId = workspaceId || labels[0]?.workspace_id;
+      const { data } = await api.post("/cards/labels", {
+        workspaceId: targetWorkspaceId,
+        name,
+        color: colorVal,
+      });
       setCurrentLabels([...currentLabels, data]);
+      setSelectedLabelIds((prev) => [...prev, data.id]);
     } catch (err) {
       setAlertInfo({ title: "Gagal", message: "Gagal membuat label baru.", type: "error" });
     }
@@ -65,7 +70,7 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isP
 
   const handleDeleteLabel = async (labelId) => {
     try {
-      await api.delete(`/boards/label/${labelId}`);
+      await api.delete(`/cards/labels/${labelId}`);
       setCurrentLabels(currentLabels.filter((l) => l.id !== labelId));
       setSelectedLabelIds(selectedLabelIds.filter((id) => id !== labelId));
     } catch (err) {
@@ -261,7 +266,7 @@ const AddCardModal = ({ listName, labels = [], members = [], onClose, onAdd, isP
             </div>
 
             {/* MEMBERS ASSIGNEES (HIDDEN ON PRIVATE WORKSPACE) */}
-            {!isPrivate && members.length > 0 && (
+            {!isPrivate && userRole !== "Member" && members.length > 0 && (
               <div style={styles.section}>
                 <label style={styles.label}><User size={12} style={{ marginRight: "4px" }} /> Tugaskan Anggota</label>
                 <div style={{ position: "relative" }}>

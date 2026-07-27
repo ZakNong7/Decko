@@ -158,8 +158,8 @@ const BoardView = () => {
     const remainingBoards = boardsInWorkspace.filter((b) => b.id !== board.id);
     if (remainingBoards.length > 0) {
       const nextBoard = remainingBoards[0];
-      const wsSlug = board.workspace_name.toLowerCase().replace(/\s+/g, "-");
-      const boardSlug = nextBoard.name.toLowerCase().replace(/\s+/g, "-");
+      const wsSlug = slugify(board.workspace_name);
+      const boardSlug = slugify(nextBoard.name);
       navigate(
         `/workspace/${wsSlug}/${nextBoard.slug_id || nextBoard.id}/${boardSlug}`,
       );
@@ -399,6 +399,8 @@ const BoardView = () => {
           labels={board.labels || []}
           members={board.members || []}
           isPrivate={isPrivate}
+          userRole={board.user_role}
+          workspaceId={board.workspace_id}
           onClose={() => setShowAddCard(null)}
           onAdd={addCard}
         />
@@ -414,6 +416,7 @@ const BoardView = () => {
         <CardModal
           card={{
             ...selectedCard,
+            workspace_id: board?.workspace_id,
             list_name: board?.lists?.find((l) =>
               l.cards?.some((c) => c.id === selectedCard.id)
             )?.name || selectedCard.list_name

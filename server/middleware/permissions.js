@@ -228,7 +228,7 @@ function requireCanEditCardsBatch(req, res, next) {
       }
       const cardIds = cards.map((card) => card.id);
       const result = await db.query(
-        `SELECT DISTINCT b.workspace_id, wm.role
+        `SELECT DISTINCT b.workspace_id, b.id AS board_id, wm.role
          FROM cards c
          JOIN lists l ON l.id = c.list_id
          JOIN boards b ON b.id = l.board_id
@@ -246,6 +246,7 @@ function requireCanEditCardsBatch(req, res, next) {
       }
       req.userRole = role;
       req.workspaceId = result.rows[0].workspace_id;
+      req.boardId = result.rows[0].board_id;
       next();
     } catch (err) {
       console.error(err);
