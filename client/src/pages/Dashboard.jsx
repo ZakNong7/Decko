@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import MemberAvatarStack from "../components/MemberAvatarStack";
 import WorkspaceSettingsModal from "../components/modals/WorkspaceSettingsModal";
+import SystemStatsModal from "../components/modals/SystemStatsModal";
+import ReportModal from "../components/modals/ReportModal";
+import SuperAdminDashboard from "../components/SuperAdminDashboard";
 import {
   Search,
   Plus,
@@ -18,12 +21,31 @@ import {
   Layout,
   Lock,
   AlertTriangle,
+  ShieldCheck,
+  CheckCircle,
+  FolderGit2,
+  Layers,
 } from "lucide-react";
 
 const Dashboard = () => {
+  const slugify = (text) => {
+  if (!text) return "";
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")           // Replace spaces with -
+    .replace(/[^\w\-]+/g, "")       // Remove all non-word chars
+    .replace(/\-\-+/g, "-")         // Replace multiple - with single -
+    .replace(/^-+/, "")             // Trim - from start
+    .replace(/-+$/, "");            // Trim - from end
+};
   const [workspaces, setWorkspaces] = useState([]);
   const [user, setUser] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSystemStatsOpen, setIsSystemStatsOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [adminViewMode, setAdminViewMode] = useState('admin');
   const [isSettingsOpen, setIsSettingsOpen] = useState(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(null);
   const [alertInfo, setAlertInfo] = useState(null);
@@ -171,8 +193,8 @@ const Dashboard = () => {
       const { data } = await api.get(`/boards/workspace/${workspaceId}`);
       if (data && data.length > 0) {
         const board = data[0];
-        const wsSlug = ws ? ws.name.toLowerCase().replace(/\s+/g, "-") : "ws";
-        const boardSlug = board.name.toLowerCase().replace(/\s+/g, "-");
+        const wsSlug = ws ? slugify(ws.name) : "ws";
+        const boardSlug = slugify(board.name);
         const randomId = board.slug_id || board.id;
         navigate(`/workspace/${wsSlug}/${randomId}/${boardSlug}`);
       } else {
@@ -219,6 +241,23 @@ const Dashboard = () => {
   const canManageWorkspace = (role) =>
     ["owner", "admin"].includes(role?.toLowerCase());
 
+  // Calculate Dashboard Statistics
+  const totalWorkspacesCount = workspaces.length;
+  const totalBoardsCount = workspaces.reduce((acc, ws) => acc + (parseInt(ws.board_count) || 0), 0);
+  const totalActiveCardsCount = workspaces.reduce((acc, ws) => acc + (parseInt(ws.card_count) || 0), 0);
+  const totalCompletedCardsCount = workspaces.reduce((acc, ws) => acc + (parseInt(ws.completed_card_count || 0)), 0);
+
+  const isSuperAdmin = user && user.username?.toLowerCase() === "admin";
+
+  if (isSuperAdmin && adminViewMode === "admin") {
+    return (
+      <SuperAdminDashboard
+        user={user}
+        onSwitchToUserView={() => setAdminViewMode("user")}
+      />
+    );
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -232,9 +271,75 @@ const Dashboard = () => {
           </div>
           <span style={styles.logoText}>DECKO</span>
         </div>
-        <button onClick={handleLogout} style={styles.logoutBtn}>
-          KELUAR
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {isSuperAdmin && adminViewMode === "user" && (
+            <button
+              onClick={() => setAdminViewMode("admin")}
+              style={{
+                backgroundColor: "#0095ff",
+                color: "#ffffff",
+                border: "none",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+              title="Kembali ke Konsol Admin"
+            >
+              <ShieldCheck size={16} />
+              Konsol Admin Sistem
+            </button>
+          )}
+          {user && user.username?.toLowerCase() === "admin" && adminViewMode !== "user" && (
+            <button
+              onClick={() => setIsSystemStatsOpen(true)}
+              style={{
+                backgroundColor: "rgba(0, 149, 255, 0.15)",
+                color: "#0095ff",
+                border: "1px solid rgba(0, 149, 255, 0.3)",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+              title="Lihat Statistik & Pengguna Sistem Decko"
+            >
+              <ShieldCheck size={16} />
+              Statistik Sistem
+            </button>
+          )}
+          <button
+            onClick={() => setIsReportOpen(true)}
+            style={{
+              backgroundColor: "rgba(231, 76, 60, 0.15)",
+              color: "#e74c3c",
+              border: "1px solid rgba(231, 76, 60, 0.3)",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+            title="Laporkan Akun / Spam ke Administrator"
+          >
+            <AlertTriangle size={15} />
+            Laporkan
+          </button>
+          <button onClick={handleLogout} style={styles.logoutBtn}>
+            KELUAR
+          </button>
+        </div>
       </header>
 
       <main style={styles.main}>
@@ -438,6 +543,15 @@ const Dashboard = () => {
           type={alertInfo.type}
           onClose={() => setAlertInfo(null)}
         />
+      )}
+      {isReportOpen && (
+        <ReportModal
+          onClose={() => setIsReportOpen(false)}
+          onSuccess={() => setAlertInfo({ title: "Terikirim", message: "Laporan pelanggaran berhasil dikirim ke Administrator.", type: "success" })}
+        />
+      )}
+      {isSystemStatsOpen && (
+        <SystemStatsModal onClose={() => setIsSystemStatsOpen(false)} />
       )}
       {isAddModalOpen && (
         <div className="modal-backdrop modal-backdrop-enter" style={styles.modalOverlay}>

@@ -100,16 +100,21 @@ router.post(
         );
       }
 
-      if (
-        assigneeIds.length > 0 &&
-        !canManageBoard(req.listContext?.role || req.userRole)
-      ) {
-        return res
-          .status(403)
-          .json({ message: "Hanya Owner/Admin yang dapat menugaskan anggota" });
+      let finalAssignees = assigneeIds;
+      if (req.userRole === ROLES.MEMBER) {
+        finalAssignees = [req.user.id];
+      } else {
+        if (
+          assigneeIds.length > 0 &&
+          !canManageBoard(req.listContext?.role || req.userRole)
+        ) {
+          return res
+            .status(403)
+            .json({ message: "Hanya Owner/Admin yang dapat menugaskan anggota" });
+        }
       }
 
-      for (const assigneeId of assigneeIds) {
+      for (const assigneeId of finalAssignees) {
         await db.query(
           "INSERT INTO card_members (card_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
           [newCard.rows[0].id, assigneeId],
@@ -215,15 +220,84 @@ router.put(
   },
 );
 
-// Delete Card
+// Delete (Archive/Soft Delete) Card
 router.delete(
   "/card/:id",
   authenticateToken,
   requireCardAccess(canEditCards),
   async (req, res) => {
     try {
+      await db.query(
+        "UPDATE cards SET is_archived = true, archived_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [req.params.id],
+      );
+      res.json({ message: "Card archived" });
+      const io = req.app.get("io");
+      if (io && req.cardContext) {
+        io.to(`board-${req.cardContext.boardId}`).emit("card-update");
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Get Archived Cards for a Board
+router.get(
+  "/archived/board/:boardId",
+  authenticateToken,
+  requireBoardMember((req) => req.params.boardId),
+  async (req, res) => {
+    try {
+      const result = await db.query(
+        `SELECT c.*, l.name AS list_name
+         FROM cards c
+         JOIN lists l ON l.id = c.list_id
+         WHERE l.board_id = $1 AND COALESCE(c.is_archived, false) = true
+         ORDER BY c.archived_at DESC, c.id DESC`,
+        [req.params.boardId],
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Restore Archived Card
+router.put(
+  "/card/:id/restore",
+  authenticateToken,
+  requireCardAccess(canEditCards),
+  async (req, res) => {
+    try {
+      await db.query(
+        "UPDATE cards SET is_archived = false, archived_at = NULL WHERE id = $1",
+        [req.params.id],
+      );
+      res.json({ message: "Card restored" });
+      const io = req.app.get("io");
+      if (io && req.cardContext) {
+        io.to(`board-${req.cardContext.boardId}`).emit("card-update");
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Permanent Delete Card
+router.delete(
+  "/card/:id/permanent",
+  authenticateToken,
+  requireCardAccess(canEditCards),
+  async (req, res) => {
+    try {
       await db.query("DELETE FROM cards WHERE id = $1", [req.params.id]);
-      res.json({ message: "Card deleted" });
+      res.json({ message: "Card permanently deleted" });
       const io = req.app.get("io");
       if (io && req.cardContext) {
         io.to(`board-${req.cardContext.boardId}`).emit("card-update");
@@ -252,6 +326,10 @@ router.put(
       }
       await db.query("COMMIT");
       res.json({ message: "Cards updated" });
+      const io = req.app.get("io");
+      if (io && req.boardId) {
+        io.to(`board-${req.boardId}`).emit("card-update");
+      }
     } catch (err) {
       await db.query("ROLLBACK");
       console.error(err);
@@ -334,6 +412,13 @@ router.post(
         [workspaceId, name, color || "#0095ff"],
       );
       res.status(201).json(result.rows[0]);
+      const io = req.app.get("io");
+      if (io && workspaceId) {
+        const boards = await db.query("SELECT id FROM boards WHERE workspace_id = $1", [workspaceId]);
+        for (const b of boards.rows) {
+          io.to(`board-${b.id}`).emit("card-update");
+        }
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });
@@ -347,8 +432,17 @@ router.delete(
   requireLabelAccess(canEditCards),
   async (req, res) => {
     try {
+      const labelRes = await db.query("SELECT workspace_id FROM labels WHERE id = $1", [req.params.id]);
+      const workspaceId = labelRes.rows[0]?.workspace_id;
       await db.query("DELETE FROM labels WHERE id = $1", [req.params.id]);
       res.json({ message: "Label deleted" });
+      const io = req.app.get("io");
+      if (io && workspaceId) {
+        const boards = await db.query("SELECT id FROM boards WHERE workspace_id = $1", [workspaceId]);
+        for (const b of boards.rows) {
+          io.to(`board-${b.id}`).emit("card-update");
+        }
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Server error" });

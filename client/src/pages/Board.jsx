@@ -9,6 +9,7 @@ import {
   Calendar,
   MessageSquare,
   Settings,
+  Archive,
   House,
   LogOut,
   ChevronDown,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import socket from "../api/socket";
 import SettingsModal from "../components/SettingsModal";
+import ArchivedCardsModal from "../components/modals/ArchivedCardsModal";
 import MemberAvatarStack from "../components/MemberAvatarStack";
 import {
   canEditCards,
@@ -39,6 +41,7 @@ const BoardView = () => {
   const [boardsInWorkspace, setBoardsInWorkspace] = useState([]);
   const [selectedCard, setSelectedCard] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [showAddList, setShowAddList] = useState(false);
   const [showAddBoard, setShowAddBoard] = useState(false);
   const [showAddCard, setShowAddCard] = useState(null);
@@ -122,21 +125,27 @@ const BoardView = () => {
 
   const addCard = async (cardData) => {
     try {
-      const list = board.lists.find((l) => l.id === showAddCard);
+      const list = board?.lists?.find((l) => l.id === showAddCard);
       await api.post("/cards/card", {
         listId: showAddCard,
         title: cardData.title,
+        description: cardData.description || "",
         priority: cardData.priority,
         color: cardData.color,
         deadline: cardData.deadline,
-        labelIds: cardData.labelIds,
-        assigneeIds: cardData.assigneeIds,
-        orderIndex: list.cards.length,
+        labelIds: cardData.labelIds || [],
+        assigneeIds: cardData.assigneeIds || [],
+        orderIndex: list?.cards ? list.cards.length : 0,
       });
       setShowAddCard(null);
       fetchBoardData();
     } catch (err) {
-      setAlertInfo({ title: "Gagal", message: "Gagal menambah kartu baru.", type: "error" });
+      console.error("Error creating card:", err);
+      setAlertInfo({ 
+        title: "Gagal", 
+        message: err.response?.data?.message || "Gagal menambah kartu baru.", 
+        type: "error" 
+      });
     }
   };
 
@@ -158,8 +167,8 @@ const BoardView = () => {
     const remainingBoards = boardsInWorkspace.filter((b) => b.id !== board.id);
     if (remainingBoards.length > 0) {
       const nextBoard = remainingBoards[0];
-      const wsSlug = board.workspace_name.toLowerCase().replace(/\s+/g, "-");
-      const boardSlug = nextBoard.name.toLowerCase().replace(/\s+/g, "-");
+      const wsSlug = slugify(board.workspace_name);
+      const boardSlug = slugify(nextBoard.name);
       navigate(
         `/workspace/${wsSlug}/${nextBoard.slug_id || nextBoard.id}/${boardSlug}`,
       );
@@ -355,8 +364,16 @@ const BoardView = () => {
             <House size={28} color="#FFFFFF" />
           </button>
           <button
+            onClick={() => setShowArchivedModal(true)}
+            style={styles.iconBtn}
+            title="Arsip & Sampah Kartu"
+          >
+            <Archive size={28} color="#FFFFFF" />
+          </button>
+          <button
             onClick={() => setIsSettingsOpen(true)}
             style={styles.iconBtn}
+            title="Pengaturan Papan"
           >
             <Settings size={28} color="#FFFFFF" />
           </button>
@@ -364,6 +381,14 @@ const BoardView = () => {
       </header>
 
       {/* Modals */}
+      {showArchivedModal && (
+        <ArchivedCardsModal
+          boardId={board.id}
+          canEditCards={canEdit}
+          onClose={() => setShowArchivedModal(false)}
+          onUpdate={fetchBoardData}
+        />
+      )}
       {isSettingsOpen && (
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -399,6 +424,8 @@ const BoardView = () => {
           labels={board.labels || []}
           members={board.members || []}
           isPrivate={isPrivate}
+          userRole={board.user_role}
+          workspaceId={board.workspace_id}
           onClose={() => setShowAddCard(null)}
           onAdd={addCard}
         />
@@ -414,6 +441,7 @@ const BoardView = () => {
         <CardModal
           card={{
             ...selectedCard,
+            workspace_id: board?.workspace_id,
             list_name: board?.lists?.find((l) =>
               l.cards?.some((c) => c.id === selectedCard.id)
             )?.name || selectedCard.list_name

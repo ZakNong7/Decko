@@ -155,6 +155,22 @@ async function ensureSchemaCompatibility() {
   await db.query("CREATE INDEX IF NOT EXISTS idx_comments_card_id ON comments(card_id)");
   await db.query("CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id)");
   await db.query("ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP");
+  await db.query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE");
+  await db.query("ALTER TABLE cards ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_expires_at TIMESTAMP WITH TIME ZONE");
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id SERIAL PRIMARY KEY,
+      reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      target_username VARCHAR(100),
+      reason VARCHAR(100),
+      description TEXT,
+      status VARCHAR(20) DEFAULT 'Pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 }
 
 ensureSchemaCompatibility()

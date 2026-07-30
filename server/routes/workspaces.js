@@ -29,7 +29,12 @@ router.get("/", authenticateToken, async (req, res) => {
           SELECT id FROM lists 
           WHERE board_id IN (SELECT id FROM boards WHERE workspace_id = w.id)
           AND COALESCE(is_final, false) = false
-        )) as card_count,
+        ) AND COALESCE(c.is_archived, false) = false) as card_count,
+        (SELECT COUNT(*) FROM cards c WHERE c.list_id IN (
+          SELECT id FROM lists 
+          WHERE board_id IN (SELECT id FROM boards WHERE workspace_id = w.id)
+          AND COALESCE(is_final, false) = true
+        ) AND COALESCE(c.is_archived, false) = false) as completed_card_count,
         COALESCE((
           SELECT json_agg(json_build_object(
             'id', u.id,
