@@ -220,15 +220,84 @@ router.put(
   },
 );
 
-// Delete Card
+// Delete (Archive/Soft Delete) Card
 router.delete(
   "/card/:id",
   authenticateToken,
   requireCardAccess(canEditCards),
   async (req, res) => {
     try {
+      await db.query(
+        "UPDATE cards SET is_archived = true, archived_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [req.params.id],
+      );
+      res.json({ message: "Card archived" });
+      const io = req.app.get("io");
+      if (io && req.cardContext) {
+        io.to(`board-${req.cardContext.boardId}`).emit("card-update");
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Get Archived Cards for a Board
+router.get(
+  "/archived/board/:boardId",
+  authenticateToken,
+  requireBoardMember((req) => req.params.boardId),
+  async (req, res) => {
+    try {
+      const result = await db.query(
+        `SELECT c.*, l.name AS list_name
+         FROM cards c
+         JOIN lists l ON l.id = c.list_id
+         WHERE l.board_id = $1 AND COALESCE(c.is_archived, false) = true
+         ORDER BY c.archived_at DESC, c.id DESC`,
+        [req.params.boardId],
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Restore Archived Card
+router.put(
+  "/card/:id/restore",
+  authenticateToken,
+  requireCardAccess(canEditCards),
+  async (req, res) => {
+    try {
+      await db.query(
+        "UPDATE cards SET is_archived = false, archived_at = NULL WHERE id = $1",
+        [req.params.id],
+      );
+      res.json({ message: "Card restored" });
+      const io = req.app.get("io");
+      if (io && req.cardContext) {
+        io.to(`board-${req.cardContext.boardId}`).emit("card-update");
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// Permanent Delete Card
+router.delete(
+  "/card/:id/permanent",
+  authenticateToken,
+  requireCardAccess(canEditCards),
+  async (req, res) => {
+    try {
       await db.query("DELETE FROM cards WHERE id = $1", [req.params.id]);
-      res.json({ message: "Card deleted" });
+      res.json({ message: "Card permanently deleted" });
       const io = req.app.get("io");
       if (io && req.cardContext) {
         io.to(`board-${req.cardContext.boardId}`).emit("card-update");

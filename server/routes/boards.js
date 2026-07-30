@@ -208,7 +208,7 @@ router.get(
               JOIN labels l ON l.id = cl.label_id
               WHERE cl.card_id = c.id), '[]'::json) AS labels
            FROM cards c
-           WHERE c.list_id = $1
+           WHERE c.list_id = $1 AND COALESCE(c.is_archived, false) = false
            ORDER BY CASE WHEN c.priority = 'High' THEN 0 WHEN c.priority = 'Medium' THEN 1 ELSE 2 END, c.order_index, c.id`,
               [list.id, board.workspace_id, list.name],
             );

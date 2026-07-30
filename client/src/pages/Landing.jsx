@@ -23,6 +23,10 @@ const Landing = () => {
 
   const handleAuth = async (e, type) => {
     e.preventDefault();
+    if (type === 'register' && formData.password !== formData.confirmPassword) {
+      setAlertInfo({ title: 'Gagal', message: 'Kata sandi dan konfirmasi kata sandi tidak cocok.', type: 'error' });
+      return;
+    }
     try {
       const endpoint = type === 'login' ? 'login' : 'register';
       const { data } = await api.post(`/auth/${endpoint}`, formData);
